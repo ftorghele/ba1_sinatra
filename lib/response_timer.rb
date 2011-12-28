@@ -1,19 +1,22 @@
-module Rack
-  class ResponseTimer
+class ResponseTimer
 
-    def initialize(app)
-      @app = app
+  require 'logger'
+
+  def initialize(app)
+    @app = app
+  end
+
+  def call(env)
+    started = Time.now
+
+    status, headers, body = @app.call(env)
+
+    log = Logger.new('response_time.txt')
+
+    unless headers["Content-Type"].nil?
+      log.debug "#{Time.now-started}" if headers["Content-Type"].include? "application/json"
     end
 
-    def call(env)
-      started = Time.now
-
-      status, headers, body = @app.call(env)
-
-      body << "<!-- Response Time: #{Time.now-started} seconds -->"
-      headers['Content-Length'] = (Rack::Utils.bytesize(body.to_s) - 8).to_s
-
-      [status, headers, body]
-    end
+    [status, headers, body]
   end
 end
