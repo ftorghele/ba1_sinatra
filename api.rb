@@ -1,40 +1,24 @@
 require './lib/response_timer'
+require './lib/gc_stats'
 require 'sinatra'
+require 'sinatra/activerecord'
 require 'json'
 
-require 'data_mapper'
-require 'dm-types'
-require 'dm-timestamps'
-require 'dm-validations'
-
 # Article Class
-class Article
-  include DataMapper::Resource
+class Article < ActiveRecord::Base
 
-  property :id, Serial
-  property :title, String, :required => true
-  property :text, String, :required => true
+  validates_presence_of :title
+  validates_presence_of :text
 
-  #property :created_at, DateTime
-  #property :updated_at, DateTime
-
-  def self.find_next(id)
-    Article.first(:id.gt =>  id)
-  end
-
-  def self.find_prev(id)
-    Article.last(:id.lt =>  id)
-  end
+  scope :find_prev, lambda { |id| { :conditions => [ "id < :id", { :id => id } ] } }
+  scope :find_next, lambda { |id| { :conditions => [ "id > :id", { :id => id } ] } }
 end
-
-#Setup Database
-DataMapper.setup(:default, "sqlite3:article.db")
-DataMapper.auto_upgrade!
 
 #ArticleApi Application
 class ArticleApi < Sinatra::Base
 
   use ResponseTimer
+  #use GCStats
 
   helpers do
     def api_links(action = nil, id = nil)
@@ -45,8 +29,8 @@ class ArticleApi < Sinatra::Base
         when :allArticles
           [ { :link => { :rel => "new", :uri => "/articles/"} } ]
         when :article
-          next_record = Article.find_next(id)
-          prev_record = Article.find_prev(id)
+          next_record = Article.find_next(id).first
+          prev_record = Article.find_prev(id).last
           [ { :link => { :rel => "self", :uri => "/articles/#{id}"} },
             { :link => { :rel => "update", :uri => "/articles/#{id}"} },
             { :link => { :rel => "delete", :uri => "/articles/#{id}"} },
@@ -89,7 +73,7 @@ class ArticleApi < Sinatra::Base
   get "/articles/:id", :provides => :json do
     content_type :json
 
-    if article = Article.first(:id => params[:id].to_i)
+    if article = Article.find_by_id(params[:id].to_i)
       {
         :content => article,
         :api => api_links(:article, article.id)
@@ -121,7 +105,7 @@ class ArticleApi < Sinatra::Base
   put "/articles/:id", :provides => :json do
     content_type :json
 
-    if article = Article.first(:id => params[:id].to_i)
+    if article = Article.find_by_id(params[:id].to_i)
 
       article.title = params[:title] unless params[:title].nil?
       article.text = params[:text] unless params[:text].nil?
@@ -143,7 +127,7 @@ class ArticleApi < Sinatra::Base
   delete "/articles/:id/?", :provides => :json do
     content_type :json
 
-    if article = Article.first(:id => params[:id].to_i)
+    if article = Article.find_by_id(params[:id].to_i)
       article.destroy!
       status 204 # No content
     else
