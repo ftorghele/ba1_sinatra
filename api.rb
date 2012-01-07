@@ -1,4 +1,6 @@
 require './lib/response_timer'
+require './lib/gc_stats'
+require 'rack/perftools_profiler'
 require 'sinatra'
 require 'json'
 
@@ -34,7 +36,12 @@ DataMapper.auto_upgrade!
 #ArticleApi Application
 class ArticleApi < Sinatra::Base
 
-  use ResponseTimer
+  configure do
+    #use ResponseTimer
+    #use GCStats
+    use ::Rack::PerftoolsProfiler, :default_printer => 'text', :mode => 'cputime', :frequency => 1000
+  end
+
 
   helpers do
     def api_links(action = nil, id = nil)

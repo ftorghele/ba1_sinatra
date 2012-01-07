@@ -13,3 +13,4 @@ gem "dm-types"
 gem "dm-validations"
 gem "json"
 gem "sinatra"
+gem 'rack-perftools_profiler'
