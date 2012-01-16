@@ -1,8 +1,9 @@
-require './lib/response_timer'
-require './lib/gc_stats'
-require 'rack/perftools_profiler'
+#require './lib/response_timer'
+#require './lib/gc_stats'
+#require 'rack/perftools_profiler'
 require 'sinatra'
 require 'json'
+require 'to_xml'
 
 require 'data_mapper'
 require 'dm-types'
@@ -39,7 +40,7 @@ class ArticleApi < Sinatra::Base
   configure do
     #use ResponseTimer
     #use GCStats
-    use ::Rack::PerftoolsProfiler, :default_printer => 'text', :mode => 'cputime', :frequency => 1000
+    #use ::Rack::PerftoolsProfiler, :default_printer => 'text', :mode => 'cputime', :frequency => 1000
   end
 
 
@@ -65,96 +66,99 @@ class ArticleApi < Sinatra::Base
       end
     end
 
-    def return_json_status(code, msg)
+    def respond_with(data)
+      request.accept.each do |type|
+        case type
+        when 'application/json', 'text/json'
+          content_type :json
+          halt data.to_json
+        else
+          content_type :xml
+          halt data.to_xml
+        end
+      end
+    end
+
+    def return_status(code, msg)
       status code
-      {
+      respond_with({
         :status => code,
         :reason => msg,
         :api => api_links(:errorResponse)
-      }.to_json
+      })
     end
   end
 
   # GET / - entry point
-  get "/", :provides => :json do
-    content_type :json
-    {
+  get "/" do
+    respond_with({
       :api => api_links(:entryPoint)
-    }.to_json
+    })
   end
 
   # GET /articles - return all articles
-  get "/articles/?", :provides => :json do
-    content_type :json
-    {
+  get "/articles/?" do
+    respond_with({
       :content => Article.all.collect{ |a| { :title => a.title, :text => a.text, :api => api_links(:article, a.id)} },
       :api => api_links(:allArticles)
-    }.to_json
+    })
   end
 
   ## GET /articles/:id - return article with specified id
-  get "/articles/:id", :provides => :json do
-    content_type :json
-
+  get "/articles/:id" do
     if article = Article.first(:id => params[:id].to_i)
-      {
+      respond_with({
         :content => article,
         :api => api_links(:article, article.id)
-      }.to_json
+      })
     else
-      return_json_status 404, "Not found"
+      return_status 404, "Not found"
     end
-
   end
 
   ## POST /articles/ - create new article
-  post "/articles/?", :provides => :json do
-    content_type :json
-
+  post "/articles/?" do
     article = Article.new(:title => params[:title], :text => params[:text])
     if article.save
       headers["Location"] = "/article/#{article.id}"
       status 201 # Created
-      {
+
+      respond_with({
         :content => article,
         :api => api_links(:article, article.id)
-      }.to_json
+      })
     else
-      return_json_status 400, article.errors.to_hash
+      return_status 400, article.errors.to_hash
     end
   end
 
   # PUT /articles/:id - change a whole article
-  put "/articles/:id", :provides => :json do
-    content_type :json
-
+  put "/articles/:id" do
     if article = Article.first(:id => params[:id].to_i)
 
       article.title = params[:title] unless params[:title].nil?
       article.text = params[:text] unless params[:text].nil?
 
       if article.save
-        {
+        respond_with({
           :content => article,
           :api => api_links(:article, article.id)
-        }.to_json
+        })
       else
-        return_json_status 400, article.errors.to_hash
+        return_status 400, article.errors.to_hash
       end
     else
-      return_json_status 404, "Not found"
+      return_status 404, "Not found"
     end
   end
 
   # DELETE /articles/:id - delete a article
-  delete "/articles/:id/?", :provides => :json do
-    content_type :json
-
+  delete "/articles/:id/?" do
     if article = Article.first(:id => params[:id].to_i)
       article.destroy!
       status 204 # No content
     else
-      return_json_status 404, "Not found"
+      return_status 404, "Not found"
     end
   end
 
