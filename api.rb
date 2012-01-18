@@ -10,6 +10,9 @@ require 'dm-types'
 require 'dm-timestamps'
 require 'dm-validations'
 
+require 'will_paginate'
+require 'will_paginate/data_mapper'
+
 # Article Class
 class Article
   include DataMapper::Resource
@@ -99,7 +102,7 @@ class ArticleApi < Sinatra::Base
   # GET /articles - return all articles
   get "/articles/?" do
     respond_with({
-      :content => Article.all.collect{ |a| { :title => a.title, :text => a.text, :api => api_links(:article, a.id)} },
+      :content => Article.paginate(:page => params[:page], :per_page => 10).collect{ |a| { :title => a.title, :text => a.text, :api => api_links(:article, a.id)} },
       :api => api_links(:allArticles)
     })
   end
