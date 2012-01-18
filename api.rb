@@ -46,6 +46,14 @@ class ArticleApi < Sinatra::Base
     #use ::Rack::PerftoolsProfiler, :default_printer => 'text', :mode => 'cputime', :frequency => 1000
   end
 
+  def self.new(*)
+    app = Rack::Auth::Digest::MD5.new(super) do |username|
+      {'foo' => 'bar'}[username]
+    end
+    app.realm = 'Protected Area'
+    app.opaque = 'secretkey'
+    app
+  end
 
   helpers do
     def api_links(action = nil, id = nil)
@@ -90,6 +98,12 @@ class ArticleApi < Sinatra::Base
         :api => api_links(:errorResponse)
       })
     end
+
+    def authenticate!
+      use Rack::Auth::Basic, "Protected Area" do |username, password|
+        username == 'foo' && password == 'bar'
+      end
+    end
   end
 
   # GET / - entry point
@@ -101,6 +115,7 @@ class ArticleApi < Sinatra::Base
 
   # GET /articles - return all articles
   get "/articles/?" do
+    authenticate!
     respond_with(:response => {
       :content => Article.paginate(:page => params[:page], :per_page => 10).collect{ |a| { :title => a.title, :text => a.text, :api => api_links(:article, a.id)} },
       :api => api_links(:allArticles)
