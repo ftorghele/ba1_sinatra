@@ -12,4 +12,7 @@ gem "dm-timestamps"
 gem "dm-types"
 gem "dm-validations"
 gem "json"
+gem "to_xml"
+gem 'will_paginate'
 gem "sinatra"
+gem 'rack-perftools_profiler'
