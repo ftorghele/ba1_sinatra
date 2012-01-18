@@ -94,14 +94,14 @@ class ArticleApi < Sinatra::Base
 
   # GET / - entry point
   get "/" do
-    respond_with({
+    respond_with(:response => {
       :api => api_links(:entryPoint)
     })
   end
 
   # GET /articles - return all articles
   get "/articles/?" do
-    respond_with({
+    respond_with(:response => {
       :content => Article.paginate(:page => params[:page], :per_page => 10).collect{ |a| { :title => a.title, :text => a.text, :api => api_links(:article, a.id)} },
       :api => api_links(:allArticles)
     })
@@ -110,8 +110,8 @@ class ArticleApi < Sinatra::Base
   ## GET /articles/:id - return article with specified id
   get "/articles/:id" do
     if article = Article.first(:id => params[:id].to_i)
-      respond_with({
-        :content => article,
+      respond_with(:response => {
+        :content => article.to_xml,
         :api => api_links(:article, article.id)
       })
     else
@@ -126,8 +126,8 @@ class ArticleApi < Sinatra::Base
       headers["Location"] = "/article/#{article.id}"
       status 201 # Created
 
-      respond_with({
-        :content => article,
+      respond_with(:response => {
+        :content => article.to_xml,
         :api => api_links(:article, article.id)
       })
     else
@@ -143,8 +143,8 @@ class ArticleApi < Sinatra::Base
       article.text = params[:text] unless params[:text].nil?
 
       if article.save
-        respond_with({
-          :content => article,
+        respond_with(:response => {
+          :content => article.to_xml,
           :api => api_links(:article, article.id)
         })
       else
